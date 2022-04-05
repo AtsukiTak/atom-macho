@@ -1,5 +1,5 @@
 [package]
-name = "atom-macho"
+name = "readmacho"
 version = "0.1.0"
 authors = ["AtsukiTak <takatomgoo@gmail.com>"]
 edition = "2018"
@@ -7,9 +7,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-byteorder = "1.4.3"
+byteorder = "1.4.2"
 num-traits = "0.2.14"
 num-derive = "0.3.3"
+atom-macho = { path = ".." }
 
-[workspace]
-members = ["readmacho"]
+[dev-dependencies]
+mach_object = "0.1.14"
