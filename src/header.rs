@@ -21,14 +21,10 @@ pub struct Header64 {
 impl Header64 {
     pub const SIZE: u32 = 0x20; // 32 bytes
 
-    pub fn read_from<R: Read>(read: &mut R) -> (Header64, Endian) {
+    pub fn read_from<R: Read>(read: &mut R) -> Self {
         let magic_n = read.read_u32::<NativeEndian>().unwrap();
         let magic = Magic::from_u32(magic_n);
-        let endian = match magic {
-            Magic::Magic64 | Magic::Magic => Endian::NATIVE,
-            Magic::Cigam64 | Magic::Cigam => Endian::REVERSE,
-            _ => unimplemented!(),
-        };
+        let endian = magic.endian();
 
         let cpu_type_n = read.read_i32_in(endian);
         let cpu_subtype_n = read.read_i32_in(endian);
@@ -56,7 +52,7 @@ impl Header64 {
             reserved,
         };
 
-        (header, endian)
+        header
     }
 
     pub fn write_into<W: Write>(&self, write: &mut W) {
@@ -69,6 +65,10 @@ impl Header64 {
         write.write_u32_native(self.size_of_cmds);
         write.write_u32_native(self.flags.to_u32());
         write.write_u32_native(self.reserved);
+    }
+
+    pub fn endian(&self) -> Endian {
+        self.magic.endian()
     }
 }
 
@@ -106,6 +106,13 @@ impl Magic {
 
     pub fn to_u32(&self) -> u32 {
         *self as u32
+    }
+
+    pub fn endian(&self) -> Endian {
+        match self {
+            Magic::Magic64 | Magic::Magic | Magic::FatMagic => Endian::NATIVE,
+            Magic::Cigam64 | Magic::Cigam | Magic::FatCigam => Endian::REVERSE,
+        }
     }
 }
 
@@ -220,6 +227,14 @@ impl Flags {
     pub fn push(&mut self, flag: Flag) {
         self.flags.push(flag);
     }
+    
+    pub fn is_empty(&self) -> bool {
+        self.flags.is_empty()
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = Flag> + 'a {
+        self.flags.iter().copied()
+    }
 
     pub fn from_u32(flags_n: u32) -> Self {
         let mut flags = Flags::new();
@@ -273,7 +288,7 @@ mod tests {
 
         assert_eq!(buf.len(), Header64::SIZE as usize);
 
-        let (read, _) = Header64::read_from(&mut buf.as_slice());
+        let read = Header64::read_from(&mut buf.as_slice());
         assert_eq!(read, header);
     }
 }
