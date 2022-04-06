@@ -1,28 +1,33 @@
 mod hex;
 mod macho;
+mod header;
 
-use std::{
-    fs::File,
-    io::{Cursor, Read as _},
-};
+use atom_macho::header::Header64;
+use clap::Parser;
+use std::io::{Cursor, Read as _};
+use std::fs::File;
 
-fn main() {
-    let mut file = get_file();
-    let mut vec = Vec::new();
-    file.read_to_end(&mut vec).unwrap();
-
-    let mut buf = Cursor::new(vec);
-
-    let macho = macho::read_macho(&mut buf);
-    dbg!(&macho);
+#[derive(Parser)]
+struct Args {
+    file: std::path::PathBuf,
+    #[clap(short, long)]
+    header: bool,
 }
 
-fn get_file() -> File {
-    match std::env::args().skip(1).next() {
-        Some(s) => File::open(s).expect("file path is invalid"),
-        None => {
-            println!("target file's path is required.");
-            std::process::exit(1)
-        }
+fn main() {
+    let args = Args::parse();
+
+    let mut buf = {
+        let mut file = File::open(args.file).expect("file path is invalid");
+        let mut vec = Vec::new();
+        file.read_to_end(&mut vec).unwrap();
+        Cursor::new(vec)
+    };
+
+    // parse header
+    let header = Header64::read_from(&mut buf);
+    if args.header {
+        header::print_header(header);
+        return;
     }
 }

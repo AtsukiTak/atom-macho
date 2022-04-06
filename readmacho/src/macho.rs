@@ -19,7 +19,8 @@ where
 {
     buf.seek(SeekFrom::Start(0)).unwrap();
 
-    let (header, endian) = Header64::read_from(buf);
+    let header = Header64::read_from(buf);
+    let endian = header.endian();
 
     let load_commands = (0..header.n_cmds)
         .map(|_| LoadCommand::read_from_in(buf, endian))
