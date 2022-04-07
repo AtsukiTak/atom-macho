@@ -1,6 +1,6 @@
 use atom_macho::header::*;
 
-pub fn print_header(header: Header64) {
+pub fn print_header(header: &Header64) {
     println!("Header");
     println!("---------------------------");
     print("cpu type", format_cpu_type(header.cpu_type));

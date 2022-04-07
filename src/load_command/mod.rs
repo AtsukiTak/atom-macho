@@ -20,6 +20,7 @@ pub enum LoadCommand {
     Symtab(SymtabCommand),
     Dysymtab(DysymtabCommand),
     BuildVersion(BuildVersionCommand, Vec<BuildToolVersion>),
+    Unsupported(u32, Vec<u8>),
 }
 
 impl LoadCommand {
@@ -31,6 +32,7 @@ impl LoadCommand {
             LC::Symtab(cmd) => cmd.cmd,
             LC::Dysymtab(cmd) => cmd.cmd,
             LC::BuildVersion(cmd, _) => cmd.cmd,
+            LC::Unsupported(cmd, _) => *cmd,
         }
     }
 
@@ -42,6 +44,7 @@ impl LoadCommand {
             LC::Symtab(cmd) => cmd.cmdsize,
             LC::Dysymtab(cmd) => cmd.cmdsize,
             LC::BuildVersion(cmd, _) => cmd.cmdsize,
+            LC::Unsupported(_, data) => data.len() as u32,
         }
     }
 
@@ -86,7 +89,14 @@ impl LoadCommand {
                 }
                 LC::BuildVersion(cmd, tools)
             }
-            _ => unimplemented!(),
+            _ => {
+                let _cmd = read.read_u32_in(endian);
+                let cmdsize = read.read_u32_in(endian) as usize;
+                let mut data = Vec::with_capacity(cmdsize - 8);
+                data.resize(cmdsize - 8, 0);
+                read.read_exact(&mut data).unwrap();
+                LC::Unsupported(cmd, data)
+            },
         }
     }
 
@@ -111,6 +121,9 @@ impl LoadCommand {
                 for tool in tools.iter() {
                     tool.write_into(write);
                 }
+            }
+            LC::Unsupported(_, _) => {
+                panic!("Unsupported LoadCommand is unwritable");
             }
         }
     }

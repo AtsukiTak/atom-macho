@@ -1,2 +1,3 @@
 samples/*.o
 samples/minimal
+samples/static
