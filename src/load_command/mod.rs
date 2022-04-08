@@ -2,8 +2,10 @@ pub mod build_version;
 pub mod dysymtab;
 pub mod segment64;
 pub mod symtab;
+pub mod uuid;
 
 pub use self::{
+    uuid::UuidCommand,
     build_version::{BuildToolVersion, BuildVersionCommand},
     dysymtab::DysymtabCommand,
     segment64::{Section64, SegmentCommand64},
@@ -20,6 +22,7 @@ pub enum LoadCommand {
     Symtab(SymtabCommand),
     Dysymtab(DysymtabCommand),
     BuildVersion(BuildVersionCommand, Vec<BuildToolVersion>),
+    Uuid(UuidCommand),
     Unsupported(u32, Vec<u8>),
 }
 
@@ -32,6 +35,7 @@ impl LoadCommand {
             LC::Symtab(cmd) => cmd.cmd,
             LC::Dysymtab(cmd) => cmd.cmd,
             LC::BuildVersion(cmd, _) => cmd.cmd,
+            LC::Uuid(cmd) => cmd.cmd,
             LC::Unsupported(cmd, _) => *cmd,
         }
     }
@@ -44,7 +48,8 @@ impl LoadCommand {
             LC::Symtab(cmd) => cmd.cmdsize,
             LC::Dysymtab(cmd) => cmd.cmdsize,
             LC::BuildVersion(cmd, _) => cmd.cmdsize,
-            LC::Unsupported(_, data) => data.len() as u32,
+            LC::Uuid(cmd) => cmd.cmdsize,
+            LC::Unsupported(_, data) => data.len() as u32 - 8,
         }
     }
 
@@ -89,6 +94,10 @@ impl LoadCommand {
                 }
                 LC::BuildVersion(cmd, tools)
             }
+            UuidCommand::TYPE => {
+                let cmd = UuidCommand::read_from_in(&mut read, endian);
+                LC::Uuid(cmd)
+            }
             _ => {
                 let _cmd = read.read_u32_in(endian);
                 let cmdsize = read.read_u32_in(endian) as usize;
@@ -121,6 +130,9 @@ impl LoadCommand {
                 for tool in tools.iter() {
                     tool.write_into(write);
                 }
+            }
+            LC::Uuid(cmd) => {
+                cmd.write_into(write);
             }
             LC::Unsupported(_, _) => {
                 panic!("Unsupported LoadCommand is unwritable");

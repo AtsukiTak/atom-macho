@@ -1,7 +1,7 @@
 use atom_macho::load_command::{
     build_version::{BuildToolVersion, BuildVersionCommand, Platform, Tool},
     segment64::{Section64, SectionAttr, SectionType, SegmentCommand64},
-    DysymtabCommand, LoadCommand, SymtabCommand,
+    DysymtabCommand, LoadCommand, SymtabCommand, UuidCommand,
 };
 
 pub fn print_cmd(cmds: &[LoadCommand], idx: usize) {
@@ -36,6 +36,9 @@ pub fn print_cmd(cmds: &[LoadCommand], idx: usize) {
             for tool_ver in tool_vers {
                 print_tool_version(tool_ver);
             }
+        }
+        LoadCommand::Uuid(uuid) => {
+            print_uuid(uuid);
         }
         LoadCommand::Unsupported(_, _) => {}
     }
@@ -170,4 +173,15 @@ fn print_tool_version(ver: &BuildToolVersion) {
     println!("{:<10} : {}", "tool", tool_str);
 
     println!("{:<10} : {}", "version", ver.version);
+}
+
+fn print_uuid(cmd: &UuidCommand) {
+    println!("{:<10} : {}", "cmd", "LC_UUID");
+    println!("{:<10} : {}", "cmdsize", cmd.cmdsize);
+
+    print!("{:<10} : 0x", "uuid");
+    for b in cmd.uuid {
+        print!("{:02x}", b);
+    }
+    println!("");
 }
