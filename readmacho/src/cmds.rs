@@ -14,9 +14,9 @@ fn command_name(cmd: &LoadCommand) -> Cow<'static, str> {
         LoadCommand::Segment64(seg, _) => format!("segment64 \"{}\"", seg.segname).into(),
         LoadCommand::Symtab(_) => "symtab".into(),
         LoadCommand::Dysymtab(_) => "dysymtab".into(),
+        LoadCommand::Uuid(_) => "uuid".into(),
         LoadCommand::BuildVersion(_, _) => "buildversion".into(),
         LoadCommand::SourceVersion(_) => "sourceversion".into(),
-        LoadCommand::Uuid(_) => "uuid".into(),
         LoadCommand::Unsupported(cmd, _) => format!("unknown cmd [0x{:x}]", cmd).into(),
     }
 }
