@@ -1,4 +1,5 @@
 mod cmds;
+mod cmd;
 mod header;
 mod hex;
 mod macho;
@@ -12,11 +13,17 @@ use std::io::{Cursor, Read as _};
 struct Args {
     file: std::path::PathBuf,
 
-    #[clap(short = 'H', long)]
+    /// Print header
+    #[clap(short = 'H')]
     header: bool,
 
-    #[clap(short, long)]
-    cmds: bool,
+    /// Print list of load command
+    #[clap(short = 'L')]
+    load_commands: bool,
+
+    /// Print overview of the load command.
+    #[clap(short = 'l', name = "LOAD_COMMAND_IDX")]
+    load_command: Vec<usize>,
 }
 
 fn main() {
@@ -40,8 +47,14 @@ fn main() {
     let load_commands = (0..header.n_cmds)
         .map(|_| LoadCommand::read_from_in(&mut buf, header.endian()))
         .collect::<Vec<LoadCommand>>();
-    if args.cmds {
+    if args.load_commands {
         println!("");
         cmds::print_cmds(&load_commands);
+    }
+
+    // print specified load command
+    for cmd_idx in args.load_command.iter() {
+        println!("");
+        cmd::print_cmd(&load_commands, *cmd_idx);
     }
 }

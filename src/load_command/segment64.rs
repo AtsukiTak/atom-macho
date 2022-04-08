@@ -244,6 +244,10 @@ impl SectionAttrs {
         SectionAttrs { attrs: Vec::new() }
     }
 
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = SectionAttr> + 'a {
+        self.attrs.iter().copied()
+    }
+
     pub fn push(&mut self, attr: SectionAttr) {
         self.attrs.push(attr);
     }

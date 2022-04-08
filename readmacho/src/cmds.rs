@@ -5,13 +5,13 @@ pub fn print_cmds(cmds: &[LoadCommand]) {
     println!("LoadCommand List");
     println!("--------------------");
     for (i, cmd) in cmds.iter().enumerate() {
-        println!("{:<2} | {}", i + 1, command_name(cmd));
+        println!("{:<2} : {}", i, command_name(cmd));
     }
 }
 
 fn command_name(cmd: &LoadCommand) -> Cow<'static, str> {
     match cmd {
-        LoadCommand::Segment64(_, _) => "segment64".into(),
+        LoadCommand::Segment64(seg, _) => format!("segment64 \"{}\"", seg.segname).into(),
         LoadCommand::Symtab(_) => "symtab".into(),
         LoadCommand::Dysymtab(_) => "dysymtab".into(),
         LoadCommand::BuildVersion(_, _) => "buildversion".into(),
