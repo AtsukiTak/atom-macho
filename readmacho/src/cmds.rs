@@ -15,6 +15,7 @@ fn command_name(cmd: &LoadCommand) -> Cow<'static, str> {
         LoadCommand::Symtab(_) => "symtab".into(),
         LoadCommand::Dysymtab(_) => "dysymtab".into(),
         LoadCommand::BuildVersion(_, _) => "buildversion".into(),
+        LoadCommand::SourceVersion(_) => "sourceversion".into(),
         LoadCommand::Uuid(_) => "uuid".into(),
         LoadCommand::Unsupported(cmd, _) => format!("unknown cmd [0x{:x}]", cmd).into(),
     }

@@ -1,15 +1,17 @@
 pub mod build_version;
 pub mod dysymtab;
 pub mod segment64;
+pub mod source_version;
 pub mod symtab;
 pub mod uuid;
 
 pub use self::{
-    uuid::UuidCommand,
     build_version::{BuildToolVersion, BuildVersionCommand},
     dysymtab::DysymtabCommand,
     segment64::{Section64, SegmentCommand64},
     symtab::SymtabCommand,
+    uuid::UuidCommand,
+    source_version::SourceVersionCommand,
 };
 
 use crate::io::{Endian, ReadExt as _};
@@ -22,6 +24,7 @@ pub enum LoadCommand {
     Symtab(SymtabCommand),
     Dysymtab(DysymtabCommand),
     BuildVersion(BuildVersionCommand, Vec<BuildToolVersion>),
+    SourceVersion(SourceVersionCommand),
     Uuid(UuidCommand),
     Unsupported(u32, Vec<u8>),
 }
@@ -35,6 +38,7 @@ impl LoadCommand {
             LC::Symtab(cmd) => cmd.cmd,
             LC::Dysymtab(cmd) => cmd.cmd,
             LC::BuildVersion(cmd, _) => cmd.cmd,
+            LC::SourceVersion(cmd) => cmd.cmd,
             LC::Uuid(cmd) => cmd.cmd,
             LC::Unsupported(cmd, _) => *cmd,
         }
@@ -48,6 +52,7 @@ impl LoadCommand {
             LC::Symtab(cmd) => cmd.cmdsize,
             LC::Dysymtab(cmd) => cmd.cmdsize,
             LC::BuildVersion(cmd, _) => cmd.cmdsize,
+            LC::SourceVersion(cmd) => cmd.cmdsize,
             LC::Uuid(cmd) => cmd.cmdsize,
             LC::Unsupported(_, data) => data.len() as u32 - 8,
         }
@@ -94,6 +99,10 @@ impl LoadCommand {
                 }
                 LC::BuildVersion(cmd, tools)
             }
+            SourceVersionCommand::TYPE => {
+                let cmd = SourceVersionCommand::read_from_in(&mut read, endian);
+                LC::SourceVersion(cmd)
+            }
             UuidCommand::TYPE => {
                 let cmd = UuidCommand::read_from_in(&mut read, endian);
                 LC::Uuid(cmd)
@@ -105,7 +114,7 @@ impl LoadCommand {
                 data.resize(cmdsize - 8, 0);
                 read.read_exact(&mut data).unwrap();
                 LC::Unsupported(cmd, data)
-            },
+            }
         }
     }
 
@@ -130,6 +139,9 @@ impl LoadCommand {
                 for tool in tools.iter() {
                     tool.write_into(write);
                 }
+            }
+            LC::SourceVersion(cmd) => {
+                cmd.write_into(write);
             }
             LC::Uuid(cmd) => {
                 cmd.write_into(write);
