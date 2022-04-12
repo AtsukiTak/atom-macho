@@ -1,7 +1,9 @@
 use atom_macho::load_command::{
     build_version::{BuildToolVersion, BuildVersionCommand, Platform, Tool},
     segment64::{Section64, SectionAttr, SectionType, SegmentCommand64},
-    DysymtabCommand, LoadCommand, SourceVersionCommand, SymtabCommand, UuidCommand,
+    unix_thread::{Flavor, ThreadState},
+    DysymtabCommand, LoadCommand, SourceVersionCommand, SymtabCommand, UnixThreadCommand,
+    UuidCommand,
 };
 
 pub fn print_cmd(cmds: &[LoadCommand], idx: usize) {
@@ -28,8 +30,14 @@ pub fn print_cmd(cmds: &[LoadCommand], idx: usize) {
         LoadCommand::Symtab(symtab) => {
             print_symtab(symtab);
         }
+        LoadCommand::UnixThread(thread) => {
+            print_unixthread(thread);
+        }
         LoadCommand::Dysymtab(dysymtab) => {
             print_dysymtab(dysymtab);
+        }
+        LoadCommand::Uuid(uuid) => {
+            print_uuid(uuid);
         }
         LoadCommand::BuildVersion(build_ver, tool_vers) => {
             print_buildversion(build_ver);
@@ -39,9 +47,6 @@ pub fn print_cmd(cmds: &[LoadCommand], idx: usize) {
         }
         LoadCommand::SourceVersion(source_ver) => {
             print_source_version(source_ver);
-        }
-        LoadCommand::Uuid(uuid) => {
-            print_uuid(uuid);
         }
         LoadCommand::Unsupported(_, _) => {}
     }
@@ -117,6 +122,45 @@ fn print_symtab(cmd: &SymtabCommand) {
     println!("{:<10} : {}", "nsyms", cmd.nsyms);
     println!("{:<10} : {}", "stroff", cmd.stroff);
     println!("{:<10} : {}", "strsize", cmd.strsize);
+}
+
+fn print_unixthread(cmd: &UnixThreadCommand) {
+    println!("{:<10} : {}", "cmd", "LC_UNIXTHREAD");
+    println!("{:<10} : {}", "cmdsize", cmd.cmdsize);
+
+    match cmd.flavor {
+        Flavor::ThreadStateX86_64 => println!("{:<10} : x86_THREAD_STATE64", "flavor"),
+        Flavor::Unknown(n) => println!("{:<10} : unknown {}", "flavor", n),
+    };
+
+    println!("{:<10} : {}", "count", cmd.count);
+
+    match &cmd.state {
+        ThreadState::X86_64(state) => {
+            println!("{:<10} : {:<7} 0x{:016x}", "state", "rax", state.__rax);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "rbx", state.__rbx);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "rcx", state.__rcx);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "rdx", state.__rdx);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "rdi", state.__rdi);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "rsi", state.__rsi);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "rbp", state.__rbp);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "rsp", state.__rsp);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "r8", state.__r8);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "r9", state.__r9);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "r10", state.__r10);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "r11", state.__r11);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "r12", state.__r12);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "r13", state.__r13);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "r14", state.__r14);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "r15", state.__r15);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "rip", state.__rip);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "rflags", state.__rflags);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "cs", state.__cs);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "fs", state.__fs);
+            println!("{:<10} : {:<7} 0x{:016x}", "", "gs", state.__gs);
+        }
+        ThreadState::Unknown(_) => {}
+    }
 }
 
 fn print_dysymtab(cmd: &DysymtabCommand) {

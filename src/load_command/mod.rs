@@ -3,6 +3,7 @@ pub mod dysymtab;
 pub mod segment64;
 pub mod source_version;
 pub mod symtab;
+pub mod unix_thread;
 pub mod uuid;
 
 pub use self::{
@@ -11,6 +12,7 @@ pub use self::{
     segment64::{Section64, SegmentCommand64},
     source_version::SourceVersionCommand,
     symtab::SymtabCommand,
+    unix_thread::UnixThreadCommand,
     uuid::UuidCommand,
 };
 
@@ -22,6 +24,7 @@ use std::io::{Read, Write};
 pub enum LoadCommand {
     Segment64(SegmentCommand64, Vec<Section64>),
     Symtab(SymtabCommand),
+    UnixThread(UnixThreadCommand),
     Dysymtab(DysymtabCommand),
     Uuid(UuidCommand),
     BuildVersion(BuildVersionCommand, Vec<BuildToolVersion>),
@@ -36,6 +39,7 @@ impl LoadCommand {
         match self {
             LC::Segment64(cmd, _) => cmd.cmd,
             LC::Symtab(cmd) => cmd.cmd,
+            LC::UnixThread(cmd) => cmd.cmd,
             LC::Dysymtab(cmd) => cmd.cmd,
             LC::Uuid(cmd) => cmd.cmd,
             LC::BuildVersion(cmd, _) => cmd.cmd,
@@ -50,6 +54,7 @@ impl LoadCommand {
         match self {
             LC::Segment64(cmd, _) => cmd.cmdsize,
             LC::Symtab(cmd) => cmd.cmdsize,
+            LC::UnixThread(cmd) => cmd.cmdsize,
             LC::Dysymtab(cmd) => cmd.cmdsize,
             LC::Uuid(cmd) => cmd.cmdsize,
             LC::BuildVersion(cmd, _) => cmd.cmdsize,
@@ -85,6 +90,10 @@ impl LoadCommand {
             SymtabCommand::TYPE => {
                 let cmd = SymtabCommand::read_from_in(&mut read, endian);
                 LC::Symtab(cmd)
+            }
+            UnixThreadCommand::TYPE => {
+                let cmd = UnixThreadCommand::read_from_in(&mut read, endian);
+                LC::UnixThread(cmd)
             }
             DysymtabCommand::TYPE => {
                 let cmd = DysymtabCommand::read_from_in(&mut read, endian);
@@ -129,6 +138,9 @@ impl LoadCommand {
                 }
             }
             LC::Symtab(cmd) => {
+                cmd.write_into(write);
+            }
+            LC::UnixThread(cmd) => {
                 cmd.write_into(write);
             }
             LC::Dysymtab(cmd) => {

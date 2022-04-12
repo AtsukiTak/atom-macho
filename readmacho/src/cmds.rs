@@ -13,6 +13,7 @@ fn command_name(cmd: &LoadCommand) -> Cow<'static, str> {
     match cmd {
         LoadCommand::Segment64(seg, _) => format!("segment64 \"{}\"", seg.segname).into(),
         LoadCommand::Symtab(_) => "symtab".into(),
+        LoadCommand::UnixThread(_) => "unixthread".into(),
         LoadCommand::Dysymtab(_) => "dysymtab".into(),
         LoadCommand::Uuid(_) => "uuid".into(),
         LoadCommand::BuildVersion(_, _) => "buildversion".into(),
