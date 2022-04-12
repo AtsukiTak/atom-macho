@@ -2,8 +2,11 @@
 name = "atom-macho"
 version = "0.1.0"
 authors = ["AtsukiTak <takatomgoo@gmail.com>"]
-edition = "2018"
+edition = "2021"
 license = "MIT"
+description = "MachO file format primitives"
+homepage = "https://github.com/AtsukiTak/atom-macho"
+repository = "https://github.com/AtsukiTak/atom-macho"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
