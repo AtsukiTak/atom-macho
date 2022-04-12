@@ -1,8 +1,7 @@
 # atom-macho
-MachO format primitive tools for Rust.
+MachO file format primitives for Rust.
 
-This repository currently contains 2 crates, `atom-macho` and `readmacho`.
+![Crates.io](https://img.shields.io/crates/v/atom-macho)
+![Crates.io](https://img.shields.io/crates/l/atom-macho)
+![docs.rs](https://img.shields.io/docsrs/atom-macho)
 
-`atom-macho` is a very primitive library that defines MachO format structure and provides serialization and deserialization methods.
-
-`readmacho` is an application that reads MachO formatted file and shows informations about it.
