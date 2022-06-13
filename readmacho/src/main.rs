@@ -1,10 +1,13 @@
-mod cmds;
 mod cmd;
+mod cmds;
 mod header;
 mod hex;
 mod macho;
 
-use atom_macho::{header::Header64, load_command::LoadCommand};
+use atom_macho::{
+    header::{Header, Header64, CpuType, CpuSubTypeX86_64},
+    load_command::LoadCommand,
+};
 use clap::Parser;
 use std::fs::File;
 use std::io::{Cursor, Read as _};
@@ -36,16 +39,31 @@ fn main() {
         Cursor::new(vec)
     };
 
-    // print header
-    let header = Header64::read_from(&mut buf);
+    let header = Header::read_from(&mut buf);
+
+    // TODO: detect machine cpu
+    let cpu_type = CpuType::X86_64(CpuSubTypeX86_64::All);
+
+    let mach_header = match header {
+        Header::Mach(h) => h,
+        Header::Fat(fat_header) => {
+            if let Some(fat_arch) = fat_header.fat_archs.iter().find(|fat_arch| fat_arch.cpu_type == cpu_type) {
+                buf.set_position(fat_arch.offset as u64);
+                Header64::read_from(&mut buf)
+            } else {
+                panic!("Header for {:?} is not found", cpu_type);
+            }
+        }
+    };
+
     if args.header {
         println!("");
-        header::print_header(&header);
+        header::print_header(&mach_header);
     }
 
     // print list of load commands
-    let load_commands = (0..header.n_cmds)
-        .map(|_| LoadCommand::read_from_in(&mut buf, header.endian()))
+    let load_commands = (0..mach_header.n_cmds)
+        .map(|_| LoadCommand::read_from_in(&mut buf, mach_header.endian()))
         .collect::<Vec<LoadCommand>>();
     if args.load_commands {
         println!("");
