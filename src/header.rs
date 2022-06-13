@@ -1,11 +1,48 @@
 use crate::io::{Endian, ReadExt as _, WriteExt as _};
-use byteorder::{NativeEndian, ReadBytesExt as _};
+use byteorder::{BigEndian, NativeEndian, ReadBytesExt as _, WriteBytesExt as _};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::{
     fmt,
     io::{Read, Write},
 };
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Header {
+    Mach(Header64),
+    Fat(FatHeader),
+}
+
+impl Header {
+    pub fn magic(&self) -> Magic {
+        match self {
+            Header::Mach(mach_header) => mach_header.magic,
+            Header::Fat(fat_header) => fat_header.magic,
+        }
+    }
+
+    pub fn read_from<R: Read>(read: &mut R) -> Self {
+        let magic_n = read.read_u32::<NativeEndian>().unwrap();
+        let magic = Magic::from_u32(magic_n);
+
+        match magic {
+            Magic::Magic64 | Magic::Cigam64 => {
+                Header::Mach(Header64::read_after_magic(read, magic))
+            }
+            Magic::Magic | Magic::Cigam => unimplemented!(),
+            Magic::FatMagic | Magic::FatCigam => {
+                Header::Fat(FatHeader::read_after_magic(read, magic))
+            }
+        }
+    }
+
+    pub fn write_into<W: Write>(&self, write: &mut W) {
+        match self {
+            Header::Mach(mach_header) => mach_header.write_into(write),
+            Header::Fat(fat_header) => fat_header.write_into(write),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Header64 {
@@ -24,6 +61,13 @@ impl Header64 {
     pub fn read_from<R: Read>(read: &mut R) -> Self {
         let magic_n = read.read_u32::<NativeEndian>().unwrap();
         let magic = Magic::from_u32(magic_n);
+
+        Self::read_after_magic(read, magic)
+    }
+
+    fn read_after_magic<R: Read>(read: &mut R, magic: Magic) -> Self {
+        assert!(magic == Magic::Magic64 || magic == Magic::Cigam64);
+
         let endian = magic.endian();
 
         let cpu_type_n = read.read_i32_in(endian);
@@ -42,7 +86,7 @@ impl Header64 {
 
         let reserved = read.read_u32_in(endian);
 
-        let header = Header64 {
+        Header64 {
             magic,
             cpu_type,
             file_type,
@@ -50,9 +94,7 @@ impl Header64 {
             size_of_cmds,
             flags,
             reserved,
-        };
-
-        header
+        }
     }
 
     pub fn write_into<W: Write>(&self, write: &mut W) {
@@ -147,7 +189,7 @@ impl CpuType {
             let cpu_subtype = CpuSubTypeX86_64::from_i32(cpu_subtype_n).unwrap();
             CpuType::X86_64(cpu_subtype)
         } else {
-            panic!("Unsupported cpu type")
+            panic!("Unsupported cpu type {}", cpu_type_n)
         }
     }
 
@@ -227,7 +269,7 @@ impl Flags {
     pub fn push(&mut self, flag: Flag) {
         self.flags.push(flag);
     }
-    
+
     pub fn is_empty(&self) -> bool {
         self.flags.is_empty()
     }
@@ -263,6 +305,76 @@ impl Flags {
 impl fmt::Debug for Flags {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_set().entries(self.flags.iter()).finish()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FatHeader {
+    pub magic: Magic,
+    pub fat_archs: Vec<FatArch>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FatArch {
+    /// Specifies the CPU family.
+    pub cpu_type: CpuType,
+    /// Offset to the beginning of the data for this CPU.
+    pub offset: u32,
+    /// Size of the data for this CPU.
+    pub size: u32,
+    /// The power of 2 alignment for the offset of the object file for the architecture specified
+    /// in `cpu_type` within the binary. This is required to ensure that, if this binary is
+    /// changed, the content it retains are correctly aligned for virtual memory paging and other
+    /// uses.
+    pub align: u32,
+}
+
+impl FatHeader {
+    pub fn read_from<R: Read>(read: &mut R) -> Self {
+        let magic_n = read.read_u32::<NativeEndian>().unwrap();
+        let magic = Magic::from_u32(magic_n);
+        Self::read_after_magic(read, magic)
+    }
+
+    fn read_after_magic<R: Read>(read: &mut R, magic: Magic) -> Self {
+        assert!(magic == Magic::FatMagic || magic == Magic::FatCigam);
+
+        let n_fat_archs = read.read_u32::<BigEndian>().unwrap();
+
+        let mut fat_archs = Vec::with_capacity(n_fat_archs as usize);
+
+        for _ in 0..n_fat_archs {
+            let cpu_type_n = read.read_i32::<BigEndian>().unwrap();
+            let cpu_subtype_n = read.read_i32::<BigEndian>().unwrap();
+            let cpu_type = CpuType::from_i32_i32(cpu_type_n, cpu_subtype_n);
+            let offset = read.read_u32::<BigEndian>().unwrap();
+            let size = read.read_u32::<BigEndian>().unwrap();
+            let align = read.read_u32::<BigEndian>().unwrap();
+            fat_archs.push(FatArch {
+                cpu_type,
+                offset,
+                size,
+                align,
+            });
+        }
+
+        FatHeader { magic, fat_archs }
+    }
+
+    pub fn write_into<W: Write>(&self, write: &mut W) {
+        write.write_u32::<BigEndian>(self.magic.to_u32()).unwrap();
+        write
+            .write_u32::<BigEndian>(self.fat_archs.len() as u32)
+            .unwrap();
+
+        for fat_arch in self.fat_archs.iter() {
+            let (cpu_type_n, cpu_subtype_n) = fat_arch.cpu_type.to_i32_i32();
+            write.write_i32::<BigEndian>(cpu_type_n).unwrap();
+            write.write_i32::<BigEndian>(cpu_subtype_n).unwrap();
+            write.write_u32::<BigEndian>(fat_arch.offset).unwrap();
+            write.write_u32::<BigEndian>(fat_arch.size).unwrap();
+            write.write_u32::<BigEndian>(fat_arch.align).unwrap();
+        }
     }
 }
 
